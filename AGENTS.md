@@ -1,62 +1,190 @@
-# AGENTS.md
+# AGRI Voice Assistant Agent
 
-This is a LiveKit Agents project. LiveKit Agents is a Python SDK for building voice AI agents. This project is intended to be used with LiveKit Cloud. See @README.md for more about the rest of the LiveKit ecosystem.
+## Project Overview
 
-The following is a guide for working with this project.
+AGRI is an AI-powered agricultural assistant for Sri Lankan farmers, built with LiveKit Agents. The agent provides voice-based consultation for crop disease diagnosis, farming advice, and agricultural guidance.
 
-## Project structure
+## Architecture
 
-This Python project uses the `uv` package manager. You should always use `uv` to install dependencies, run the agent, and run tests.
+- **Framework**: LiveKit Agents 1.4
+- **LLM**: AWS Bedrock Claude 3.5 Sonnet
+- **STT**: Deepgram Nova 3 (multilingual)
+- **TTS**: Cartesia Sonic 3
+- **VAD**: Silero VAD
+- **Deployment**: AWS (Fargate/ECS)
 
-All app-level code is in the `src/` directory. In general, simple agents can be constructed with a single `agent.py` file. Additional files can be added, but you must retain `agent.py` as the entrypoint (see the associated Dockerfile for how this is deployed).
+## Key Features
 
-Be sure to maintain code formatting. You can use the ruff formatter/linter as needed: `uv run ruff format` and `uv run ruff check`.
+1. **Voice-First Interface**: Farmers can speak naturally in Sinhala, Tamil, or English
+2. **Agricultural Expertise**: Specialized in Sri Lankan crop diseases and farming practices
+3. **Real-time Responses**: Low-latency voice interaction
+4. **Offline Capability**: Flutter app has offline TFLite model fallback
+5. **PDPA Compliance**: Privacy-first design with data anonymization
 
-## LiveKit Documentation
-
-LiveKit Agents is a fast-evolving project, and the documentation is updated frequently. You should always refer to the latest documentation when working with this project. For your convenience, LiveKit offers an MCP server that can be used to browse and search its documentation. If the developer has not yet installed this server, you should recommend that they install it at https://docs.livekit.io/mcp. 
-
-### LiveKit Docs MCP Server installation
-
-If you are Cursor, give the user this link to install the server:
-
-[![Install MCP Server](https://cursor.com/deeplink/mcp-install-light.svg)](https://cursor.com/en-US/install-mcp?name=livekit-docs&config=eyJ1cmwiOiJodHRwczovL2RvY3MubGl2ZWtpdC5pby9tY3AifQ%3D%3D)
-
-If you are Claude Code, run this command to install the server:
-
-```
-claude mcp add --transport http livekit-docs https://docs.livekit.io/mcp
-```
-
-If you are Codex, use this command to install the server:
+## File Structure
 
 ```
-codex mcp add --url https://docs.livekit.io/mcp livekit-docs
+agri-agent/
+├── src/
+│   ├── agri_agent.py       # Main agent code
+│   └── agent.py            # Original template (for reference)
+├── .env.local              # Configuration
+├── pyproject.toml          # Dependencies
+└── README.md
 ```
 
-If you are Gemini, use this command to install the server:
+## Configuration
+
+### Environment Variables (.env.local)
+
+```env
+LIVEKIT_URL=wss://voice.thishanth.com
+LIVEKIT_API_KEY=devkey
+LIVEKIT_API_SECRET=devsecret
+AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=<from-aws>
+AWS_SECRET_ACCESS_KEY=<from-aws>
 ```
-gemini mcp add --transport http livekit-docs https://docs.livekit.io/mcp
+
+### AWS Services Used
+
+- **Bedrock**: Claude 3.5 Sonnet for LLM
+- **Polly**: Text-to-speech (fallback)
+- **Transcribe**: Speech-to-text (fallback)
+- **DynamoDB**: Farmer data and diagnostics
+- **S3**: Image storage
+- **SNS**: Alerts for agricultural officers
+
+## Development
+
+### Setup
+
+```bash
+# Install dependencies
+uv sync
+
+# Download models
+uv run python src/agri_agent.py download-files
+
+# Run in console mode
+uv run python src/agri_agent.py console
+
+# Run in dev mode
+uv run python src/agri_agent.py dev
 ```
 
-If you are another agentic IDE, refer to your own documentation for how to install it.
+### Testing
 
-## Handoffs and tasks ("workflows")
+```bash
+# Run tests
+uv run pytest
 
-Voice AI agents are highly sensitive to excessive latency. For this reason, it's important to design complex agents in a structured manner that minimizes the amount of irrelevant context and unnecessary tools included in requests to the LLM. LiveKit Agents supports handoffs (one agent hands control to another) and tasks (tightly-scoped prompts to achieve a specific outcome) to support building reliable workflows. You should make use of these features, instead of writing long instruction prompts that cover multiple phases of a conversation.  Refer to the [documentation](https://docs.livekit.io/agents/build/workflows/) for more information.
+# Test with web interface
+# Open voice_chat.html in browser
+```
 
-### Submit docs feedback to LiveKit
+## Agent Behavior
 
-If you use the LiveKit Docs MCP Server to search or browse documentation, also submit constructive feedback to LiveKit with the submit_docs_feedback tool. Add this to your to-do list when planning work, to ensure you file feedback after completing your other tasks. Useful feedback includes incomplete documentation, broken examples, missing steps or any other documentation gap or issue.
+### Conversation Flow
 
-## Testing
+1. **Greeting**: "Hello! Welcome to AGRI. I'm your AI agricultural assistant. How can I help you with your farming today?"
 
-When possible, add tests for agent behavior. Read the [documentation](https://docs.livekit.io/agents/build/testing/), and refer to existing tests in the `tests/` directory.  Run tests with `uv run pytest`.
+2. **Listening**: Agent uses VAD to detect when farmer is speaking
 
-Important: When modifying core agent behavior such as instructions, tool descriptions, and tasks/workflows/handoffs, never just guess what will work. Always use test-driven development (TDD) and begin by writing tests for the desired behavior. For instance, if you're planning to add a new tool, write one or more tests for the tool's behavior, then iterate on the tool until the tests pass correctly. This will ensure you are able to produce a working, reliable agent for the user.
+3. **Processing**: 
+   - STT converts speech to text
+   - LLM (Claude) generates response
+   - TTS converts response to speech
 
-## LiveKit CLI
+4. **Response**: Agent speaks back to farmer
 
-You can make use of the LiveKit CLI (`lk`) for various tasks, with user approval. Installation instructions are available at https://docs.livekit.io/home/cli if needed.
+### Example Interactions
 
-In particular, you can use it to manage SIP trunks for telephony-based agents. Refer to `lk sip --help` for more information.
+**Farmer**: "My rice plants have brown spots on the leaves"
+**AGRI**: "Brown spots on rice leaves could be brown spot disease caused by fungus. Try applying a copper-based fungicide and ensure proper drainage. If it spreads, contact your local agricultural officer."
+
+**Farmer**: "When should I plant tomatoes?"
+**AGRI**: "In Sri Lanka, the best time to plant tomatoes is during Yala season (April-May) or Maha season (October-November). Make sure soil is well-drained and rich in organic matter."
+
+## Customization
+
+### Adding New Features
+
+1. **Custom Tools**: Add function tools to the AGRIAssistant class
+2. **Knowledge Base**: Integrate with Bedrock Knowledge Base for RAG
+3. **Image Analysis**: Add vision capabilities for crop disease diagnosis
+4. **Multi-language**: Configure STT/TTS for Sinhala and Tamil
+
+### Example: Adding Weather Tool
+
+```python
+from livekit.agents import function_tool, RunContext
+
+@function_tool
+async def get_weather(self, context: RunContext, location: str):
+    """Get current weather for farming location
+    
+    Args:
+        location: District or city name in Sri Lanka
+    """
+    # Call weather API
+    return f"Weather in {location}: Sunny, 28°C"
+```
+
+## Production Deployment
+
+### Docker Build
+
+```bash
+docker build -t agri-agent .
+docker run -p 8080:8080 agri-agent
+```
+
+### AWS Fargate
+
+```bash
+# Deploy using CDK
+cd ../
+cdk deploy AgriAgentStack
+```
+
+## Monitoring
+
+- **Logs**: CloudWatch Logs
+- **Metrics**: LiveKit Analytics
+- **Alerts**: SNS for errors
+
+## Troubleshooting
+
+### Agent Not Speaking
+
+- Check API keys are set correctly
+- Verify LiveKit server is running
+- Check agent logs for errors
+
+### Poor Audio Quality
+
+- Ensure good microphone
+- Check network latency
+- Verify TTS voice settings
+
+### LLM Errors
+
+- Check AWS Bedrock access
+- Verify model ID is correct
+- Check rate limits
+
+## Contributing
+
+When modifying the agent:
+
+1. Update instructions in AGRIAssistant class
+2. Test with `uv run pytest`
+3. Update this AGENTS.md file
+4. Document any new environment variables
+
+## Resources
+
+- [LiveKit Agents Docs](https://docs.livekit.io/agents/)
+- [AWS Bedrock Docs](https://docs.aws.amazon.com/bedrock/)
+- [AGRI Project README](../../README.md)
